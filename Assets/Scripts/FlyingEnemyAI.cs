@@ -1,52 +1,33 @@
 using UnityEngine;
-using UnityEngine.UI;
-using System.Collections;
 
 public class FlyingEnemyAI : MonoBehaviour
 {
-    private Transform player;
+    private Transform player; // Odkaz na hráče
     public float speed = 3f;
     public float detectionRange = 6f;
-    public LayerMask groundLayer;
-
-    [Header("Enemy Health Settings")]
-    public int maxHP = 1;
-    private int currentHP;
-    public Text textHP;
+    public LayerMask groundLayer; // Určuje, co jsou překážky
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
-    private Animator animator;
     private bool isFollowingPlayer = false;
-    private bool isDead = false;
     private Vector2 moveDirection;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
-        animator = GetComponent<Animator>();
 
-        moveDirection = Vector2.right;
+        moveDirection = Vector2.right; // Netopýr začne letět doprava
 
+        // Najdi hráče přes Singleton
         if (PlayerMovement.Instance != null)
         {
             player = PlayerMovement.Instance.transform;
         }
-
-        if (textHP == null)
-        {
-            textHP = GetComponentInChildren<Text>();
-        }
-
-        currentHP = maxHP;
-        UpdateHPText();
     }
 
     void Update()
     {
-        if (isDead) return;
-
         if (player != null && Vector2.Distance(transform.position, player.position) <= detectionRange)
         {
             isFollowingPlayer = true;
@@ -59,8 +40,6 @@ public class FlyingEnemyAI : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDead) return;
-
         if (isFollowingPlayer)
         {
             FollowPlayer();
@@ -75,10 +54,11 @@ public class FlyingEnemyAI : MonoBehaviour
     {
         rb.velocity = new Vector2(moveDirection.x * speed, rb.velocity.y);
 
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, moveDirection, 0.6f, groundLayer);
+        // Raycast detekující stěnu nebo platformu
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, moveDirection, 1.0f, groundLayer);
         if (hit.collider != null)
         {
-            FlipDirection();
+            FlipDirection(); // Změna směru při nárazu
         }
     }
 
@@ -86,51 +66,31 @@ public class FlyingEnemyAI : MonoBehaviour
     {
         Vector2 directionToPlayer = (player.position - transform.position).normalized;
         rb.velocity = new Vector2(directionToPlayer.x * speed, directionToPlayer.y * speed);
-        spriteRenderer.flipX = directionToPlayer.x < 0;
+
+        // Otočení sprite podle směru pohybu
+        if (rb.velocity.x > 0)
+        {
+            spriteRenderer.flipX = false; // Směr doprava
+        }
+        else if (rb.velocity.x < 0)
+        {
+            spriteRenderer.flipX = true; // Směr doleva
+        }
     }
 
     void FlipDirection()
     {
-        moveDirection.x *= -1;
+        moveDirection.x *= -1; // Změna směru na opačný
+
+        // Správné otočení netopýra
         spriteRenderer.flipX = moveDirection.x < 0;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Ground")) // Pokud narazí do překážky, změní směr
         {
             FlipDirection();
-        }
-    }
-
-    public void TakeDamage(int damage)
-    {
-        if (isDead) return;
-
-        currentHP -= damage;
-        UpdateHPText();
-        animator.SetTrigger("Hit");
-
-        if (currentHP <= 0)
-        {
-            StartCoroutine(Die());
-        }
-    }
-
-    IEnumerator Die()
-    {
-        isDead = true;
-        animator.SetTrigger("Death");
-        rb.velocity = Vector2.zero;
-        yield return new WaitForSeconds(1f);
-        Destroy(gameObject);
-    }
-
-    void UpdateHPText()
-    {
-        if (textHP != null)
-        {
-            textHP.text = currentHP.ToString();
         }
     }
 }
