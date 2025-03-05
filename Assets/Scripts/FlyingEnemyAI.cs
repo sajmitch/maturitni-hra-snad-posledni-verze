@@ -36,6 +36,8 @@ public class FlyingEnemyAI : MonoBehaviour
         {
             isFollowingPlayer = false;
         }
+
+
     }
 
     void FixedUpdate()
