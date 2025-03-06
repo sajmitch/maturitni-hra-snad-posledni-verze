@@ -6,11 +6,16 @@ public class AttackZone : MonoBehaviour
     {
         if (collision.CompareTag("Enemy"))
         {
-            // Nepřítel dostane poškození
             EnemyHealth enemyHealth = collision.GetComponent<EnemyHealth>();
+
             if (enemyHealth != null)
             {
+                Debug.Log("🔥 Nepřítel zasažen!"); // Debug zpráva do konzole
                 enemyHealth.TakeDamage(1);
+            }
+            else
+            {
+                Debug.LogWarning("⚠ Nepřítel nemá EnemyHealth script!");
             }
         }
     }

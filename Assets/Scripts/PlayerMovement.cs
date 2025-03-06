@@ -10,6 +10,9 @@ public class PlayerMovement : MonoBehaviour
     public float jumpForce = 10f;
     public float attackDuration = 1.1f; // Délka útoku
 
+    [Header("Attack Settings")]
+    public Transform attackZone; // Hitbox útoku
+
     [Header("Components")]
     private Rigidbody2D rb;
     private Animator animator;
@@ -17,7 +20,6 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isGrounded = true;
     private bool isAttacking = false;
-    private bool attackEndedOnGround = false; // Kontroluje, zda hráč dopadl během útoku
 
     void Awake()
     {
@@ -36,6 +38,11 @@ public class PlayerMovement : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (attackZone == null)
+        {
+            Debug.LogError("❌ AttackZone není připojena k hráči!");
+        }
     }
 
     void Update()
@@ -52,9 +59,17 @@ public class PlayerMovement : MonoBehaviour
             rb.velocity = new Vector2(0, rb.velocity.y);
         }
 
-        // **Otočení hráče**
-        if (move > 0) spriteRenderer.flipX = false;
-        if (move < 0) spriteRenderer.flipX = true;
+        // **Otočení hráče + Posunutí AttackZone**
+        if (move > 0)
+        {
+            spriteRenderer.flipX = false;
+            if (attackZone != null) attackZone.localPosition = new Vector2(0.5f, 0); // Hitbox doprava
+        }
+        else if (move < 0)
+        {
+            spriteRenderer.flipX = true;
+            if (attackZone != null) attackZone.localPosition = new Vector2(-0.5f, 0); // Hitbox doleva
+        }
 
         // **Animace běhu (nepokračuje, pokud je útok)**
         if (isGrounded && !isAttacking)
@@ -92,13 +107,6 @@ public class PlayerMovement : MonoBehaviour
 
         yield return new WaitForSeconds(attackDuration); // ⏳ Počkáme na konec animace
 
-        // **Pokud hráč dopadl během útoku, zajistí že stojí**
-        if (isGrounded)
-        {
-            rb.velocity = Vector2.zero;
-            yield return new WaitForSeconds(0.2f); // ✋ Krátké zpoždění pro plynulost
-        }
-
         isAttacking = false;
     }
 
@@ -109,13 +117,6 @@ public class PlayerMovement : MonoBehaviour
         {
             isGrounded = true;
             animator.SetBool("isGrounded", true);
-
-            // **Pokud hráč dopadl během útoku, zajistí že stojí**
-            if (isAttacking)
-            {
-                rb.velocity = Vector2.zero;
-                attackEndedOnGround = true;
-            }
         }
     }
 

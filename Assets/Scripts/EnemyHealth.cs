@@ -13,7 +13,7 @@ public class EnemyHealth : MonoBehaviour
     {
         currentHP = maxHP;
         animator = GetComponent<Animator>();
-        rb = GetComponent<Rigidbody2D>(); // Přidáno
+        rb = GetComponent<Rigidbody2D>();
     }
 
     public void TakeDamage(int damage)
@@ -32,14 +32,27 @@ public class EnemyHealth : MonoBehaviour
     IEnumerator Die()
     {
         isDead = true;
-        animator.SetBool("IsDead", true); // Nastavení booleanu v animatoru
-        rb.velocity = Vector2.zero; // Zastavení pohybu nepřítele
-        rb.isKinematic = true; // Vypnutí fyziky
-        GetComponent<Collider2D>().enabled = false; // Deaktivace kolize, pokud nechceš kolidovat
+        animator.SetBool("IsDead", true);
+        rb.velocity = Vector2.zero;
+        rb.isKinematic = true;
+        GetComponent<Collider2D>().enabled = false;
 
-        // Počkáme na konec animace
         yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
+
+        isDead = true;
+            animator.SetBool("IsDead", true);
+            Debug.Log("Nepřítel zemřel"); // 👉 Ujisti se, že se to volá
+
+            rb.velocity = Vector2.zero; // Zastavení pohybu nepřítele
+            rb.isKinematic = true; // Vypnutí fyziky
+            GetComponent<Collider2D>().enabled = false; // Deaktivace kolize
+
+            yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
+
+            Destroy(gameObject);
+        
 
         Destroy(gameObject);
     }
+
 }
