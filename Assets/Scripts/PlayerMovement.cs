@@ -8,10 +8,15 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement Settings")]
     public float speed = 5f;
     public float jumpForce = 10f;
-    public float attackDuration = 1.1f; // Délka útoku
+    public float attackDuration = 1.1f;
 
     [Header("Attack Settings")]
-    public Transform attackZone; // Hitbox útoku
+    public Transform attackZone;
+
+    [Header("Collision Settings")]
+    public LayerMask groundLayer;
+    public LayerMask wallLayer; // 🔴 Přidáme vrstvu pro zdi
+    public float wallCheckDistance = 0.2f; // Jak daleko bude Raycast kontrolovat stěnu
 
     [Header("Components")]
     private Rigidbody2D rb;
@@ -20,6 +25,8 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isGrounded = true;
     private bool isAttacking = false;
+    private bool isDead = false;
+    private bool isTouchingWall = false; // 🛑 Kontrola, jestli hráč narazil do zdi
 
     void Awake()
     {
@@ -47,37 +54,58 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        if (isDead) return;
+
         float move = Input.GetAxisRaw("Horizontal");
 
-        // **Pohyb hráče (blokován jen na zemi během útoku)**
-        if (!isAttacking || !isGrounded)
-        {
-            rb.velocity = new Vector2(move * speed, rb.velocity.y);
-        }
-        else
-        {
-            rb.velocity = new Vector2(0, rb.velocity.y);
-        }
+        // 🛑 **Detekce zdi pomocí Raycastu**
+        isTouchingWall = CheckWallCollision(move);
 
-        // **Otočení hráče + Posunutí AttackZone**
-        if (move > 0)
+        // ✅ **Hráč se nehýbe -> vypnout animaci běhu**
+        if (move == 0 || isTouchingWall)
         {
-            spriteRenderer.flipX = false;
-            if (attackZone != null) attackZone.localPosition = new Vector2(0.5f, 0); // Hitbox doprava
+            animator.SetFloat("Speed", 0);
         }
-        else if (move < 0)
-        {
-            spriteRenderer.flipX = true;
-            if (attackZone != null) attackZone.localPosition = new Vector2(-0.5f, 0); // Hitbox doleva
-        }
-
-        // **Animace běhu (nepokračuje, pokud je útok)**
-        if (isGrounded && !isAttacking)
+        else if (isGrounded && !isAttacking)
         {
             animator.SetFloat("Speed", Mathf.Abs(move));
         }
 
-        // **Skákání (blokováno pouze pokud je hráč už v útoku)**
+        // 🛑 **Oprava pohybu, pokud je hráč u zdi**
+        if (isTouchingWall)
+        {
+            move = 0; // Zabrání posunu proti zdi
+        }
+
+        // 🏃 **Pohyb hráče**
+        if (isAttacking && isGrounded)
+        {
+            rb.velocity = Vector2.zero;
+            rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
+        }
+        else
+        {
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+            if (!isAttacking)
+            {
+                rb.velocity = new Vector2(move * speed, rb.velocity.y);
+            }
+        }
+
+        // 🔄 **Oprava směru attackZone**
+        if (move > 0)
+        {
+            spriteRenderer.flipX = false;
+            if (attackZone != null) attackZone.localPosition = new Vector2(0.5f, 0);
+        }
+        else if (move < 0)
+        {
+            spriteRenderer.flipX = true;
+            if (attackZone != null) attackZone.localPosition = new Vector2(-0.5f, 0);
+        }
+
+        // 🦘 **Skákání**
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
@@ -86,37 +114,47 @@ public class PlayerMovement : MonoBehaviour
             animator.SetBool("isGrounded", false);
         }
 
-        // **Útok (možný i ve vzduchu)**
+        // ⚔ **Útok**
         if (Input.GetMouseButtonDown(0) && !isAttacking)
         {
             StartCoroutine(Attack());
         }
     }
 
-    // ✅ **Správná Coroutine pro útok**
     private IEnumerator Attack()
     {
         isAttacking = true;
+        GameManager.Instance.isPlayerAttacking = true;
+
         animator.SetTrigger("AttackTrigger");
 
-        // **Při útoku na zemi hráč stojí**
         if (isGrounded)
         {
             rb.velocity = Vector2.zero;
+            rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
         }
 
-        yield return new WaitForSeconds(attackDuration); // ⏳ Počkáme na konec animace
+        yield return new WaitForSeconds(attackDuration);
 
         isAttacking = false;
+        GameManager.Instance.isPlayerAttacking = false;
+
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        if (isGrounded)
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
     }
 
-    // 🛬 **Detekce kontaktu se zemí**
+    // 🛬 **Detekce země a kolize se stěnou**
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
             animator.SetBool("isGrounded", true);
+            animator.SetFloat("Speed", 0);
         }
     }
 
@@ -127,5 +165,48 @@ public class PlayerMovement : MonoBehaviour
             isGrounded = false;
             animator.SetBool("isGrounded", false);
         }
+    }
+
+    // 🔴 **Raycast detekce stěny**
+    private bool CheckWallCollision(float moveDirection)
+    {
+        if (moveDirection == 0) return false;
+
+        Vector2 direction = moveDirection > 0 ? Vector2.right : Vector2.left;
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, wallCheckDistance, wallLayer);
+
+        Debug.DrawRay(transform.position, direction * wallCheckDistance, Color.red); // ✅ Debug pro kontrolu
+
+        return hit.collider != null; // Pokud něco trefíme, vrátíme true (hráč je u zdi)
+    }
+
+    public void FlashRed()
+    {
+        StartCoroutine(FlashEffect());
+    }
+
+    private IEnumerator FlashEffect()
+    {
+        spriteRenderer.color = Color.red;
+        yield return new WaitForSeconds(0.2f);
+        spriteRenderer.color = Color.white;
+    }
+
+    public void TriggerDeathAnimation()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        Debug.Log("🎭 Spuštěna animace smrti hráče");
+
+        animator.SetTrigger("Death");
+        rb.velocity = Vector2.zero;
+        rb.constraints = RigidbodyConstraints2D.FreezeAll;
+    }
+
+    public float GetDeathAnimationLength()
+    {
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        return stateInfo.length;
     }
 }
