@@ -168,7 +168,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 1.8
-  detectionRange: 2.35
+  detectionRange: 6.5
   minDistanceFromPlayer: 1.64
   stopDistance: 0.55
   groundLayer:

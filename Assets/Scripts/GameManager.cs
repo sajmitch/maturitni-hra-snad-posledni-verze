@@ -73,7 +73,7 @@ public class GameManager : MonoBehaviour
         }
 
         PlayerMovement.Instance?.FlashRed();
-        CameraEffects.Instance?.TriggerShake();
+  
 
         if (playerCurrentHP == 0)
         {

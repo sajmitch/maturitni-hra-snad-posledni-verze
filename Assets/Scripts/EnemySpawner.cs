@@ -3,14 +3,14 @@ using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
-    public GameObject enemyPrefab;
-    public Transform[] spawnPoints;
-    public float initialSpawnInterval = 5f;
-    public float minSpawnInterval = 2f;
-    public float spawnReductionRate = 0.95f; // Každý spawn se zkrátí o 5 %
+    public GameObject enemyPrefab; // Prefab netopýra
+    public Transform[] spawnPoints; // Pole více spawn pointů
+    public float initialSpawnInterval = 5f; // První interval spawnování
+    public float minSpawnInterval = 2f; // Minimální možný interval
+    public float spawnReductionRate = 0.95f; // Zkracování intervalu
 
     public int enemyBaseHP = 1;
-    public float hpIncreaseInterval = 10f; // Každých 10 sekund přidáme HP
+    public float hpIncreaseInterval = 10f; // Zvýšení HP každých X sekund
 
     private float currentSpawnInterval;
     private int currentEnemyHP;
@@ -30,25 +30,32 @@ public class EnemySpawner : MonoBehaviour
         {
             yield return new WaitForSeconds(currentSpawnInterval);
 
-            Transform spawnPoint = GetValidSpawnPoint();
-            if (spawnPoint != null)
+            if (spawnPoints.Length > 0) // Ověření, že existují spawnery
             {
-                GameObject newEnemy = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);
-                newEnemy.SetActive(true);
-
-                EnemyHealth enemyHealth = newEnemy.GetComponent<EnemyHealth>();
-                if (enemyHealth != null)
-                {
-                    enemyHealth.SetMaxHP(currentEnemyHP); // ✅ Nastavení HP pro nového netopýra
-                }
-
-                currentSpawnInterval = Mathf.Max(minSpawnInterval, currentSpawnInterval * spawnReductionRate);
+                // 🔄 **Vybere náhodně 1 spawn bod**
+                Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
+                SpawnEnemyAt(spawnPoint);
             }
             else
             {
-                Debug.LogWarning("⚠️ Žádné volné místo pro spawn nepřítele!");
-                yield return new WaitForSeconds(1f);
+                Debug.LogWarning("⚠️ Žádné spawnovací body nejsou nastaveny!");
             }
+
+            // ✅ Redukce intervalu pro vyšší obtížnost
+            currentSpawnInterval = Mathf.Max(minSpawnInterval, currentSpawnInterval * spawnReductionRate);
+        }
+    }
+
+    void SpawnEnemyAt(Transform spawnPoint)
+    {
+        GameObject newEnemy = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);
+        newEnemy.SetActive(true);
+
+        // ✅ Přiřadí nepříteli správné HP
+        EnemyHealth enemyHealth = newEnemy.GetComponent<EnemyHealth>();
+        if (enemyHealth != null)
+        {
+            enemyHealth.SetMaxHP(currentEnemyHP);
         }
     }
 
@@ -60,18 +67,5 @@ public class EnemySpawner : MonoBehaviour
             currentEnemyHP++;
             Debug.Log("⬆️ Zvýšené HP nepřátel na: " + currentEnemyHP);
         }
-    }
-
-    Transform GetValidSpawnPoint()
-    {
-        foreach (Transform spawnPoint in spawnPoints)
-        {
-            Collider2D overlap = Physics2D.OverlapCircle(spawnPoint.position, 1f, LayerMask.GetMask("Enemy"));
-            if (overlap == null)
-            {
-                return spawnPoint;
-            }
-        }
-        return null;
     }
 }
