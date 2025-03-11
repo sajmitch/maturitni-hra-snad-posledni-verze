@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 using UnityEngine.UI;
 using System.Collections;
 
@@ -10,11 +11,16 @@ public class GameManager : MonoBehaviour
     [Header("Player Stats")]
     public int playerMaxHP = 5;
     private int playerCurrentHP;
-    public bool isPlayerAttacking = false; // Blokuje damage během útoku hráče
+    public bool isPlayerAttacking = false;
+
+    [Header("Score System")]
+    private float survivalTime = 0f;
+    private bool isPlayerAlive = true;
+    public TMP_Text scoreText; // Používá TMP_Text místo Text
 
     [Header("UI Elements")]
-    public Slider playerHealthBar; // HP bar hráče
-    public Button killAllButton; // Tlačítko pro zabití všech nepřátel
+    public Slider playerHealthBar;
+    public Button killAllButton;
 
     void Awake()
     {
@@ -32,7 +38,6 @@ public class GameManager : MonoBehaviour
     {
         playerCurrentHP = playerMaxHP;
 
-        // 🔍 Automaticky najde Slider, pokud není přiřazen ručně
         if (playerHealthBar == null)
         {
             playerHealthBar = GameObject.Find("PlayerHealthBar")?.GetComponent<Slider>();
@@ -45,7 +50,6 @@ public class GameManager : MonoBehaviour
             playerHealthBar.value = playerCurrentHP;
         }
 
-        // 🔍 Najdeme tlačítko Kill-All (musí být deaktivované na startu)
         if (killAllButton == null)
         {
             killAllButton = GameObject.Find("KillAllButton")?.GetComponent<Button>();
@@ -58,14 +62,30 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        if (isPlayerAlive)
+        {
+            survivalTime += Time.deltaTime;
+
+            if (scoreText != null)
+            {
+                scoreText.text = survivalTime.ToString("F1") + " s"; // Zobrazení jako "12.5 s"
+            }
+        }
+    }
+
+    public float GetSurvivalTime()
+    {
+        return survivalTime;
+    }
+
     public void TakeDamage(int damage)
     {
-        if (isPlayerAttacking) return; // Blokuje damage během útoku hráče
+        if (isPlayerAttacking) return;
 
         playerCurrentHP -= damage;
-        if (playerCurrentHP < 0) playerCurrentHP = 0; // HP nesmí jít do mínusu
-
-        Debug.Log("🔥 Hráč dostal hit! HP: " + playerCurrentHP);
+        if (playerCurrentHP < 0) playerCurrentHP = 0;
 
         if (playerHealthBar != null)
         {
@@ -73,30 +93,35 @@ public class GameManager : MonoBehaviour
         }
 
         PlayerMovement.Instance?.FlashRed();
-  
 
         if (playerCurrentHP == 0)
         {
-            StartCoroutine(PlayerDeath());
+            PlayerDeath();
         }
     }
 
-    private IEnumerator PlayerDeath()
+    private void PlayerDeath()
     {
-        Debug.Log("💀 Hráč zemřel!");
+        isPlayerAlive = false;
+        PlayerMovement.Instance?.TriggerDeathAnimation(); // Spustí animaci smrti
 
-        PlayerMovement.Instance?.TriggerDeathAnimation();
-        yield return new WaitForSeconds(1.5f);
+        float deathAnimationLength = PlayerMovement.Instance?.GetDeathAnimationLength() ?? 1.5f; // Získáme délku animace
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        StartCoroutine(DelayedGameOver(deathAnimationLength)); // Počká na konec animace a přepne scénu
+    }
+
+    private IEnumerator DelayedGameOver(float delay)
+    {
+        yield return new WaitForSeconds(delay); // Počkej na dokončení animace
+        PlayerPrefs.SetFloat("LastScore", survivalTime);
+        PlayerPrefs.Save();
+        SceneManager.LoadScene("GameOverScene");
     }
 
     public void Heal(int amount)
     {
         playerCurrentHP += amount;
         if (playerCurrentHP > playerMaxHP) playerCurrentHP = playerMaxHP;
-
-        Debug.Log("💚 Hráč se uzdravil! HP: " + playerCurrentHP);
 
         if (playerHealthBar != null)
         {
