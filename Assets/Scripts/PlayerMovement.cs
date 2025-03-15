@@ -28,6 +28,8 @@ public class PlayerMovement : MonoBehaviour
     private bool isDead = false;
     private bool isTouchingWall = false; // 🛑 Kontrola, jestli hráč narazil do zdi
 
+    AudioManager audioManager;
+
     void Awake()
     {
         if (Instance == null)
@@ -38,6 +40,8 @@ public class PlayerMovement : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        audioManager = GameObject.FindGameObjectWithTag("Audio").GetComponent<AudioManager>();
     }
 
     void Start()
@@ -105,13 +109,10 @@ public class PlayerMovement : MonoBehaviour
             if (attackZone != null) attackZone.localPosition = new Vector2(-0.5f, 0);
         }
 
-        // 🦘 **Skákání**
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isAttacking)
+        // 🦘 **Skákání (funguje s `Space` i `W`, ale jen když je hráč na zemi)**
+        if ((Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W)) && isGrounded && !isAttacking)
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-            animator.SetTrigger("JumpTrigger");
-            isGrounded = false;
-            animator.SetBool("isGrounded", false);
+            Jump();
         }
 
         // ⚔ **Útok**
@@ -121,30 +122,16 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private IEnumerator Attack()
+    void Jump()
     {
-        isAttacking = true;
-        GameManager.Instance.isPlayerAttacking = true;
+        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        animator.SetTrigger("JumpTrigger");
+        isGrounded = false;
+        animator.SetBool("isGrounded", false);
 
-        animator.SetTrigger("AttackTrigger");
+        // 🔊 Přehraj zvuk skoku
+        audioManager.PlaySFX(audioManager.jumpSound);
 
-        if (isGrounded)
-        {
-            rb.velocity = Vector2.zero;
-            rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
-        }
-
-        yield return new WaitForSeconds(attackDuration);
-
-        isAttacking = false;
-        GameManager.Instance.isPlayerAttacking = false;
-
-        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-
-        if (isGrounded)
-        {
-            yield return new WaitForSeconds(0.1f);
-        }
     }
 
     // 🛬 **Detekce země a kolize se stěnou**
@@ -180,6 +167,33 @@ public class PlayerMovement : MonoBehaviour
         return hit.collider != null; // Pokud něco trefíme, vrátíme true (hráč je u zdi)
     }
 
+    private IEnumerator Attack()
+    {
+        isAttacking = true;
+        GameManager.Instance.isPlayerAttacking = true;
+
+        animator.SetTrigger("AttackTrigger");
+        audioManager.PlaySFX(audioManager.attackSound);
+
+        if (isGrounded)
+        {
+            rb.velocity = Vector2.zero;
+            rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
+        }
+
+        yield return new WaitForSeconds(attackDuration);
+
+        isAttacking = false;
+        GameManager.Instance.isPlayerAttacking = false;
+
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        if (isGrounded)
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+    }
+
     public void FlashRed()
     {
         StartCoroutine(FlashEffect());
@@ -202,6 +216,8 @@ public class PlayerMovement : MonoBehaviour
         animator.SetTrigger("Death");
         rb.velocity = Vector2.zero;
         rb.constraints = RigidbodyConstraints2D.FreezeAll;
+        audioManager.PlaySFX(audioManager.deathSound);
+
     }
 
     public float GetDeathAnimationLength()

@@ -11,6 +11,7 @@ TagManager:
   - HPItem
   - HealingPotion
   - KillAllPotion
+  - Audio
   layers:
   - Default
   - TransparentFX

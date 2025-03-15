@@ -14,7 +14,11 @@ public class FlyingEnemyAI : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private bool isFollowingPlayer = false;
     private Vector2 moveDirection;
-    private bool isAttacking = false; // ✨ Přidáno: Zabrání pohybu během útoku
+    private bool isAttacking = false;
+
+    private float idleTime = 0f; // ⏳ Čas od posledního pohybu
+    public float maxIdleTime = 1.5f; // ⏱ Pokud netopýr stojí déle než 1.5 sekundy, změní směr
+    public float velocityThreshold = 0.05f; // 📉 Pokud je rychlost nižší než tato hodnota, netopýr je považován za nehybný
 
     void Start()
     {
@@ -31,7 +35,7 @@ public class FlyingEnemyAI : MonoBehaviour
 
     void Update()
     {
-        if (isAttacking) return; // ✨ Netopýr se nehýbe, pokud útočí
+        if (isAttacking) return;
 
         if (player != null && Vector2.Distance(transform.position, player.position) <= detectionRange)
         {
@@ -41,11 +45,26 @@ public class FlyingEnemyAI : MonoBehaviour
         {
             isFollowingPlayer = false;
         }
+
+        // 🔍 **Kontrola nehybnosti**
+        if (rb.velocity.magnitude < velocityThreshold)
+        {
+            idleTime += Time.deltaTime;
+            if (idleTime >= maxIdleTime)
+            {
+                ChangeRandomDirection();
+                idleTime = 0f;
+            }
+        }
+        else
+        {
+            idleTime = 0f; // ✅ Resetujeme časovač, pokud se netopýr hýbe
+        }
     }
 
     void FixedUpdate()
     {
-        if (isAttacking) return; // ✨ Netopýr se nehýbe, pokud útočí
+        if (isAttacking) return;
 
         if (isFollowingPlayer)
         {
@@ -103,6 +122,29 @@ public class FlyingEnemyAI : MonoBehaviour
         spriteRenderer.flipX = moveDirection.x < 0;
     }
 
+    /// 🏃 **Když se netopýr zasekne, náhodně změní směr**
+    void ChangeRandomDirection()
+    {
+        Debug.Log("🔄 Netopýr změnil směr, aby se uvolnil!");
+
+        int randomChoice = Random.Range(0, 3);
+        switch (randomChoice)
+        {
+            case 0:
+                moveDirection = Vector2.right; // ➡ Pohyb doprava
+                break;
+            case 1:
+                moveDirection = Vector2.left; // ⬅ Pohyb doleva
+                break;
+            case 2:
+                moveDirection = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized; // 🔀 Náhodný směr
+                break;
+        }
+
+        // 🚀 **Okamžitě dáme malý impuls, aby se netopýr dostal pryč**
+        rb.velocity = moveDirection * speed * 1.2f;
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
@@ -111,14 +153,12 @@ public class FlyingEnemyAI : MonoBehaviour
         }
     }
 
-    // ✨ **Nové: Metoda pro obnovu pohybu po útoku**
     public void ResumeMovement()
     {
         isAttacking = false;
         isFollowingPlayer = true;
     }
 
-    // ✨ **Nové: Metoda pro zastavení pohybu během útoku**
     public void StopMovement()
     {
         isAttacking = true;

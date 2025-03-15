@@ -13,24 +13,25 @@ public class GameOver : MonoBehaviour
     public Button mainMenuButton;
 
     [Header("Parallax Settings")]
-    public RectTransform backgroundPanel; // Odkaz na Panel s pozadím
-    public float parallaxStrength = 15f; // Síla efektu
+    public RectTransform backgroundPanel;
+    public float parallaxStrength = 15f;
     private Vector2 startPos;
     private Vector2 canvasSize;
+
+    [SerializeField] private MusicManager musicManager; // 🔊 Přidána reference na MusicManager
 
     void Start()
     {
         float lastScore = PlayerPrefs.GetFloat("LastScore", 0);
         string playerNickname = PlayerPrefs.GetString("PlayerNickname", "Unknown");
 
-        scoreText.text = $"{playerNickname} - {lastScore:F1} s"; // Přidána mezera před "s"
+        scoreText.text = $"{playerNickname} - {lastScore:F1} s";
 
         UpdateLeaderboard(playerNickname, lastScore);
 
         restartButton.onClick.AddListener(RestartGame);
         mainMenuButton.onClick.AddListener(BackToMainMenu);
 
-        // Inicializace parallaxu
         if (backgroundPanel != null)
         {
             startPos = backgroundPanel.anchoredPosition;
@@ -40,7 +41,6 @@ public class GameOver : MonoBehaviour
 
     void Update()
     {
-        // 🎥 Parallax efekt podle myši
         if (backgroundPanel != null)
         {
             Vector2 mousePos = new Vector2(Input.mousePosition.x / canvasSize.x * 2 - 1, Input.mousePosition.y / canvasSize.y * 2 - 1);
@@ -53,7 +53,7 @@ public class GameOver : MonoBehaviour
     {
         List<LeaderboardEntry> scores = new List<LeaderboardEntry>();
 
-        // ✅ Načtení současného leaderboardu
+        // ✅ Načítání existujících záznamů
         for (int i = 0; i < 10; i++)
         {
             string nameKey = "LeaderboardName_" + i;
@@ -68,33 +68,31 @@ public class GameOver : MonoBehaviour
             }
         }
 
-        // ✅ Zjistíme, zda hráč už má lepší skóre
+        // ✅ **Kontrola, zda už hráč v tabulce existuje**
         var existingEntry = scores.FirstOrDefault(e => e.nickname == nickname);
-        if (existingEntry != null && existingEntry.score >= newScore)
+
+        if (existingEntry != null)
         {
-            Debug.Log($"⏳ Player {nickname} already has a better score: {existingEntry.score:F1} s");
-            positionText.text = $"Placement: - / {scores.Count}";
-            return;
+            if (existingEntry.score >= newScore)
+            {
+                Debug.Log($"⏳ {nickname} už má lepší skóre: {existingEntry.score:F1} s");
+                return; // Hráč už má lepší skóre, neukládáme nové
+            }
+            else
+            {
+                scores.Remove(existingEntry); // ❌ Smazání starého výsledku
+            }
         }
 
-        // ✅ Přidání hráče a seřazení leaderboardu
+        // ✅ **Přidání nového nejlepšího skóre hráče**
         scores.Add(new LeaderboardEntry(nickname, newScore));
         scores = scores.OrderByDescending(e => e.score).Take(10).ToList();
 
-        // ✅ Zjistíme umístění hráče
-        int position = scores.FindIndex(e => e.nickname == nickname && e.score == newScore) + 1;
+        // ✅ **Najít nové umístění hráče**
+        int position = scores.FindIndex(e => e.nickname == nickname) + 1;
+        positionText.text = position > 0 ? $"Placement: {position} / {scores.Count}" : "Placement: - / 10";
 
-        // ✅ Pokud hráč není v top 10, zobrazí `-/10`
-        if (position == 0)
-        {
-            positionText.text = $"Placement: - / {scores.Count}";
-        }
-        else
-        {
-            positionText.text = $"Placement: {position} / {scores.Count}";
-        }
-
-        // ✅ Uložíme leaderboard
+        // ✅ **Uložení leaderboardu**
         for (int i = 0; i < scores.Count; i++)
         {
             PlayerPrefs.SetString("LeaderboardName_" + i, scores[i].nickname);
@@ -106,11 +104,31 @@ public class GameOver : MonoBehaviour
 
     public void RestartGame()
     {
+        // 🔊 Přehrát zvuk tlačítka
+        if (musicManager != null)
+        {
+            musicManager.PlaySFX(musicManager.buttonClickSound);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ MusicManager nebyl nalezen! Zvuk tlačítka se nespustí.");
+        }
+
         SceneManager.LoadScene("GameScene");
     }
 
     public void BackToMainMenu()
     {
+        // 🔊 Přehrát zvuk tlačítka
+        if (musicManager != null)
+        {
+            musicManager.PlaySFX(musicManager.buttonClickSound);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ MusicManager nebyl nalezen! Zvuk tlačítka se nespustí.");
+        }
+
         SceneManager.LoadScene("MainMenuScene");
     }
 }

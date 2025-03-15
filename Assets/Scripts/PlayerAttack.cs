@@ -26,15 +26,20 @@ public class PlayerAttack : MonoBehaviour
     IEnumerator Attack()
     {
         isAttacking = true;
-        GameManager.Instance.isPlayerAttacking = true; // Aktivuje ochranu
+        GameManager.Instance.isPlayerAttacking = true;
         animator.SetTrigger("AttackTrigger");
 
         attackZone.gameObject.SetActive(true);
+
+        // 🔊 Přehraj zvuk útoku
+        // AudioManager.Instance.PlaySound(AudioManager.Instance.attackSound);
+
         yield return new WaitForSeconds(attackDuration);
+
         attackZone.gameObject.SetActive(false);
         isAttacking = false;
+        yield return new WaitForSeconds(attackImmunityTime);
 
-        yield return new WaitForSeconds(attackImmunityTime); // Krátká ochrana po útoku
         GameManager.Instance.isPlayerAttacking = false;
     }
 }

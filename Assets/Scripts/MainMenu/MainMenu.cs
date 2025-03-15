@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
+
 public class MainMenu : MonoBehaviour
 {
     public TMP_InputField nicknameField;
@@ -17,6 +18,9 @@ public class MainMenu : MonoBehaviour
     public float parallaxStrength = 15f; // Síla efektu
     private Vector2 startPos;
     private Vector2 canvasSize;
+
+    // AudioManager audioManager;
+    [SerializeField] private MusicManager musicManager;
 
     void Start()
     {
@@ -53,12 +57,14 @@ public class MainMenu : MonoBehaviour
     }
 
     public void StartGame()
+
     {
         string nickname = nicknameField.text.Trim();
 
         if (string.IsNullOrEmpty(nickname))
         {
             Debug.LogWarning("⚠️ Player did not enter a nickname!");
+            musicManager.PlaySFX(musicManager.buttonClickSound);
 
             // ⚠️ Zobrazí varování v UI
             if (nicknameWarningText != null)
@@ -68,7 +74,7 @@ public class MainMenu : MonoBehaviour
             }
             return;
         }
-
+        musicManager.PlaySFX(musicManager.buttonClickSound);
         PlayerPrefs.SetString("PlayerNickname", nickname);
         SceneManager.LoadScene("GameScene");
     }
@@ -76,6 +82,7 @@ public class MainMenu : MonoBehaviour
     public void QuitGame()
     {
         Application.Quit();
+        musicManager.PlaySFX(musicManager.buttonClickSound);
     }
 
     void LoadLeaderboard()

@@ -10,6 +10,8 @@ public class EnemyHealth : MonoBehaviour
     private Rigidbody2D rb;
     private bool isDead = false;
 
+    private AudioManager audioManager; // ✅ AudioManager reference
+
     [Header("UI Health Text")]
     public Text healthText;
 
@@ -17,6 +19,7 @@ public class EnemyHealth : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
+        audioManager = FindObjectOfType<AudioManager>(); // ✅ Najde AudioManager ve scéně
 
         if (maxHP < 1) maxHP = 1; // ✅ Zajištění minimálního HP = 1
         currentHP = maxHP;
@@ -38,6 +41,12 @@ public class EnemyHealth : MonoBehaviour
         animator.SetTrigger("Hit");
         UpdateHealthText();
 
+        // 🔊 Zvuk zásahu nepřítele
+        if (audioManager != null)
+        {
+            audioManager.PlaySFX(audioManager.enemyHitSound);
+        }
+
         if (currentHP <= 0)
         {
             StartCoroutine(Die());
@@ -50,8 +59,6 @@ public class EnemyHealth : MonoBehaviour
 
         isDead = true;
         animator.SetBool("IsDead", true);
-        Debug.Log("🔥 Nepřítel zemřel!");
-
         rb.velocity = Vector2.zero;
         rb.isKinematic = true;
         GetComponent<Collider2D>().enabled = false;
@@ -61,6 +68,13 @@ public class EnemyHealth : MonoBehaviour
             healthText.gameObject.SetActive(false);
         }
 
+        // 🔊 Přehrání zvuku smrti ještě před čekáním
+        if (audioManager != null)
+        {
+            audioManager.PlaySFX(audioManager.enemyDeathSound);
+        }
+
+        // ⏳ Počká na dokončení animace smrti a pak zničí objekt
         yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
         Destroy(gameObject);
     }
